@@ -1,0 +1,1 @@
+This is a folder where I'm sharing solutions from powerapps
