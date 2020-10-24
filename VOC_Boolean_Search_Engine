@@ -1,0 +1,1048 @@
+//Favorite's Logic
+If(favorite_deeplink, 
+Clear(VOC_List); ForAll(Saved_List, Collect(VOC_List, LookUp('VOC List', CaseNumber = ID))),
+
+//These are used to determine if we need to load in data again
+UpdateContext({earliestDateLoaded: Date(First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Ascending)).YearOpened, First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Ascending)).MonthOpened, First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Ascending)).DayOpened)});
+UpdateContext({dateCaseID: 5});
+UpdateContext({latestDateLoaded: Date(First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Descending)).YearOpened, First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Descending)).MonthOpened, First(Sort(VOC_Table,Date_x002f_Time_x0020_Opened,Descending)).DayOpened)});
+
+If(SearchDateFrom < Date(2018, 9, 1), Set(SearchDateFrom, Date(2018, 9, 1)));
+
+UpdateContext({dateCaseID: 5}); UpdateContext({loading_search: 1});
+If(
+    earliestDateLoaded > SearchDateFrom,
+    //Determine which case to use for backloading data
+    If(
+        Year(SearchDateFrom) = Year(earliestDateLoaded),
+        If(
+            Month(SearchDateFrom) = Month(earliestDateLoaded),
+            UpdateContext({dateCaseID: 1}),
+            UpdateContext({dateCaseID: 2})
+        ),
+        If(
+            Year(earliestDateLoaded) - Year(SearchDateFrom) = 1,
+            UpdateContext({dateCaseID: 3}),
+            UpdateContext({dateCaseID: 4})
+        )       
+    );
+    
+//Picker for how much data to backload
+Switch(
+        dateCaseID,
+        1,
+     //case if records are all in the same month
+        If(
+            SearchDateFrom < earliestDateLoaded, //check to see if we've already loaded these records
+            ForAll(
+                Filter(DaysOfMonth, Value < Day(earliestDateLoaded)),
+                Collect(VOC_Table,Filter('VOC List',YearOpened = Year(SearchDateFrom) && MonthOpened = Month(SearchDateFrom) && DayOpened = Value))                )
+        ),
+        2,
+        //case if records in same year but different months
+        If(Day(earliestDateLoaded) > 1, RemoveIf(VOC_Table, YearOpened = Year(earliestDateLoaded) && MonthOpened = Month(earliestDateLoaded));
+        ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(SearchDateFrom) && MonthOpened = Month(earliestDateLoaded) && DayOpened = Value))
+            )); //prevent duplicating records we loaded in the middle of the month
+            ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(SearchDateFrom) && MonthOpened >= Month(SearchDateFrom) && MonthOpened < Month(earliestDateLoaded) && DayOpened = Value))
+            ),
+        3,
+     //case if records from two subsequent years
+        If(Day(earliestDateLoaded) > 1, RemoveIf(VOC_Table, YearOpened = Year(earliestDateLoaded) && MonthOpened = Month(earliestDateLoaded));
+        ForAll(
+            DaysOfMonth,
+            Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded) && MonthOpened = Month(earliestDateLoaded) && DayOpened = Value)))); //prevent duplicating records we loaded in the middle of the month 
+        UpdateContext({loading_search: 2});
+        ForAll(
+            DaysOfMonth,
+            Collect(VOC_Table, Filter('VOC List', YearOpened = Year(SearchDateFrom) && MonthOpened >= Month(SearchDateFrom) && DayOpened = Value))); //Load data from first year in range
+        UpdateContext({loading_search: 3});
+        ForAll(
+            DaysOfMonth,
+            Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded) && MonthOpened < Month(earliestDateLoaded) && DayOpened = Value))); UpdateContext({loading_search: 4})
+             //Load data from last year in range
+            ,
+        4,
+     //case if records from more than two years
+        If(Day(earliestDateLoaded) > 1, RemoveIf(VOC_Table, YearOpened = Year(earliestDateLoaded) && MonthOpened = Month(earliestDateLoaded));
+        ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded) && MonthOpened <= Month(earliestDateLoaded) && DayOpened = Value))
+        )
+        ); //prevent duplicating records we loaded in the middle of the month
+        ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded) && MonthOpened <= Month(earliestDateLoaded) && DayOpened = Value))
+        ); //Load data for current year; // Load data from first year in range
+        If(Year(SearchDateFrom) < Year(earliestDateLoaded)-1, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-1 && DayOpened = Value)))); //Load data from one year prior to earliest year in range
+        If(Year(SearchDateFrom) < Year(earliestDateLoaded)-2, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-2 && DayOpened = Value)))); //Load data from two year prior to earliest year in range
+        		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-3, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-3 && DayOpened = Value)))); //Load data from three years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-4, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-4 && DayOpened = Value)))); //Load data from four years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-5, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-5 && DayOpened = Value)))); //Load data from five years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-6, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-6 && DayOpened = Value)))); //Load data from six years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-7, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-7 && DayOpened = Value)))); //Load data from seven years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-8, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-8 && DayOpened = Value)))); //Load data from eight years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-9, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-9 && DayOpened = Value)))); //Load data from nine years prior to earliest year in range
+		If(Year(SearchDateFrom) < Year(earliestDateLoaded)-10, 
+             ForAll(
+                 DaysOfMonth,
+                 Collect(VOC_Table, Filter('VOC List', YearOpened = Year(earliestDateLoaded)-10 && DayOpened = Value)))) //Load data from ten years prior to earliest year in range
+        ,
+     //default case - happens if user does something unexpected like select a "from" date after a "to" date
+        UpdateContext({doNothing: true})
+    )
+);
+
+UpdateContext({loading_search: 5}); UpdateContext({searching_message: "Please wait while we load your search results..."});
+
+Clear(VOC_Table_Copy);
+ForAll(VOC_Table, Collect(VOC_Table_Copy, {bbb: Concatenate(Sub_x0020_Type,Case_x0020_ID)}));
+Set(Deduplication_start, Distinct(VOC_Table_Copy, bbb));
+ClearCollect(VOC_Table_Copy2, VOC_Table);
+Clear(VOC_Table);
+ForAll(Deduplication_start, Collect(VOC_Table, LookUp(VOC_Table_Copy2, Result = Concatenate(Sub_x0020_Type,Case_x0020_ID))));
+
+//Collects rows based on all filters except the single search box
+ClearCollect(VOC_List,
+    Filter(VOC_Table,
+		/*If(CountRows(Type_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Type_Table}, {combotable : Split(Type1, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Type_Table}, {combotable : Split(Type1, ";")}), "combotable")), true),
+		If(CountRows(Sub_Type_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Sub_Type_Table}, {combotable : Split(Sub_x0020_Type, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Sub_Type_Table}, {combotable : Split(Sub_x0020_Type, ";")}), "combotable")), true),
+		If(CountRows(Type_Feedback_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Type_Feedback_Table}, {combotable : Split(Type_x0020_of_x0020_Feedback, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Type_Feedback_Table}, {combotable : Split(Type_x0020_of_x0020_Feedback, ";")}), "combotable")), true),
+		If(CountRows(Market_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Market_Table}, {combotable : Split(Market_x0020_Segment, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Market_Table}, {combotable : Split(Market_x0020_Segment, ";")}), "combotable")), true),
+		If(CountRows(Jurisdiction_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Jurisdiction_Table}, {combotable : Split(Jurisdiction, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Jurisdiction_Table}, {combotable : Split(Jurisdiction, ";")}), "combotable")), true),
+		If(CountRows(Topical_Table)>0, CountRows(Distinct(Ungroup(Table({combotable : Topical_Table}, {combotable : Split(Topical_x0020_Area, ";")}), "combotable"), Result)) < CountRows(Ungroup(Table({combotable : Topical_Table}, {combotable : Split(Topical_x0020_Area, ";")}), "combotable")), true),
+		Case_x0020_Owner_x0020_Role_x002 in Department_Table.Value,*/
+		Date_x002f_Time_x0020_Opened >= SearchDateFrom, 
+		DateDiff(Date_x002f_Time_x0020_Opened,SearchDateTo, Days) >= 0));
+
+//ClearCollect(VOC_List, VOC_Table);
+UpdateIf(VOC_List, true, {Account_x0020_Name : Concatenate(" ", Account_x0020_Name, " "), Description : Concatenate(" ", Description, " "), Subject: Concatenate(" ", Subject, " "), Type1 : Concatenate(" ", Type1, " "), Sub_x0020_Type : Concatenate(" ", Sub_x0020_Type, " "), Account_x0020_Number : Concatenate(" ", Account_x0020_Number, " "), Type_x0020_of_x0020_Feedback : Concatenate(" ", Type_x0020_of_x0020_Feedback, " "), Market_x0020_Segment : Concatenate(" ", Market_x0020_Segment, " "), Jurisdiction : Concatenate(" ", Jurisdiction, " "), Topical_x0020_Area : Concatenate(" ", Topical_x0020_Area, " "), Title : Concatenate(" ", Title, " "), Case_x0020_Owner_x0020_Role_x002 : Concatenate(" ", Case_x0020_Owner_x0020_Role_x002, " ") });
+
+Clear(highlights);
+
+UpdateContext({loading_search: 10});
+
+//Begin Text Search logic		
+If(SearchTerms <> "",
+
+//Clear all the tables that are used in text processing
+Clear(Parse1Table);
+Clear(Parse2Table); 
+Clear(Parse3Table); 
+Clear(Parse4Table); 
+Clear(Parse5Table); 
+Clear(Parse6Table); 
+Clear(Parse7Table); 
+Clear(Parse8Table);
+Clear(NumbersInUse);
+Clear(NumbersInUse2); 
+Clear(NumbersInUse3); 
+Clear(N2);
+Clear(ParseOATable);
+
+ClearCollect(Parse1Table, Split(Substitute(SearchTerms, "#""", """"), " ")); //Split search string on white space
+
+ClearCollect(ListOfNumbers, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335,336,337,338,339,340,341,342,343,344,345,346,347,348,349,350,351,352,353,354,355,356,357,358,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377,378,379,380,381,382,383,384,385,386,387,388,389,390,391,392,393,394,395,396,397,398,399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436,437,438,439,440,441,442,443,444,445,446,447,448,449,450,451,452,453,454,455,456,457,458,459,460,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,495,496,497,498,499,500]); //Generate list of numbers that are used for indexing
+
+UpdateContext({loading_search: 11});
+Clear(Parse1aTable);
+ForAll(Parse1Table, Collect(Parse1aTable, If(Right(Result, 1) = """" && Left(Result, 1) = """", Right(Left(Result, Len(Result) - 1), Len(Result) - 2), Result)));
+ClearCollect(NumbersInUse, FirstN(ListOfNumbers, CountRows(Parse1aTable)));
+ForAll(NumbersInUse, Collect(Parse2Table, {Index:Value, Word:Last(FirstN(Parse1aTable, Value)).Value})); //Add an index to all search terms
+ForAll(NumbersInUse, Collect(N2, {Num:Value})); //Efficiency - This can probably be done with a DropColumns in a more efficient way
+ForAll(Parse2Table, If("""" in Word, Collect(Parse3Table, {Index3: Last(FirstN(ListOfNumbers, CountRows(Parse3Table)+1)).Value, I:Index, QW:Word}))); //Collect terms at start or end of quoted phrase
+ForAll(Parse3Table, Collect(Parse4Table, {Index4:Index3, I4:I, QW4:QW})); //Index terms with quotes
+ForAll(Parse3Table, If (Mod(Index3,2) = 1, Collect(ParseOATable, {QW5: Concat(LastN(FirstN(Parse2Table, LookUp(Parse4Table, Index4 = Index3+1, I4)), LookUp(Parse4Table, Index4 = Index3+1, I4)+1-I), Word," "), StartIndex: I, EndIndex:LookUp(Parse4Table, Index4 = Index3+1, I4)}))); //Parse terms at beginning of quotes into ParseOATable
+
+//Substitute "OR" and "AND for terms in quotes
+ClearCollect(ParseHoldO1, ForAll(ParseOATable, {StartIndex01: StartIndex, QW5: Substitute(Lower(QW5), " or ", " qvx7r "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldO2, ForAll(ParseHoldO1, {StartIndex02: StartIndex01, QW5: Substitute(Lower(QW5), """or ", """qvx7r "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldO3, ForAll(ParseHoldO2, {StartIndex03: StartIndex02, QW5: Substitute(Lower(QW5), " or""", " qvx7r"""), EndIndex: EndIndex}));
+
+ClearCollect(ParseHoldA1, ForAll(ParseHoldO3, {StartIndexA1: StartIndex03, QW5: Substitute(Lower(QW5), " and ", " qvx7d "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldA2, ForAll(ParseHoldA1, {StartIndexA2: StartIndexA1, QW5: Substitute(Lower(QW5), """and ", """qvx7d "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldA3, ForAll(ParseHoldA2, {StartIndexA3: StartIndexA2, QW5: Substitute(Lower(QW5), "& ", "qvx7a "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldA4, ForAll(ParseHoldA3, {StartIndexA4: StartIndexA3, QW5: Substitute(Lower(QW5), " & ", " qvx7a "), EndIndex: EndIndex}));
+ClearCollect(ParseHoldA5, ForAll(ParseHoldA4, {StartIndexA5: StartIndexA4, QW5: Substitute(Lower(QW5), " &", " qvx7a"), EndIndex: EndIndex}));
+ClearCollect(Parse5Table, ForAll(ParseHoldA5, {StartIndex: StartIndexA5, QW5: Substitute(Lower(QW5), " and""", " qvx7d"""), EndIndex: EndIndex}));
+
+ClearCollect(NumbersInUse2, FirstN(ListOfNumbers, CountRows(Parse5Table)));
+ForAll(NumbersInUse2, Collect(Parse6Table, {Index6:Value, StartIndex: Last(FirstN(Parse5Table, Value)).StartIndex, EndIndex: Last(FirstN(Parse5Table, Value)).EndIndex, QW6: Lower(Last(FirstN(Parse5Table, Value)).QW5)}));
+ForAll(Parse6Table, Collect(Parse7Table, {Index7: Index6, StartIndex7: StartIndex, EndIndex7:EndIndex, QW7:QW6}));
+Clear(NumbersInUse2);
+ForAll(Parse6Table, Collect(NumbersInUse2, {Number: StartIndex}); Collect(NumbersInUse3, {Number: Concat(LastN(FirstN(Parse2Table, LookUp(Parse7Table, Index7 = Index6+1, StartIndex7-1)), LookUp(Parse7Table, Index7 = Index6+1, StartIndex7-EndIndex-1)).Index, Text(Index), "|")}));
+Collect(NumbersInUse3, {Number: Concat(FirstN(Parse2Table, First(Parse7Table).StartIndex7-1), Text(Index), "|")});
+Collect(NumbersInUse3, {Number: Concat(LastN(Parse2Table, CountRows(Parse2Table) - Last(Parse7Table).EndIndex7), Text(Index), "|")}); 
+UpdateContext({storednumbers: Concat(NumbersInUse3, Number, "|")});
+ForAll(NumbersInUse2, Collect(Parse8Table, {Index8: Number, Word8: LookUp(Parse6Table, StartIndex = Number, QW6)}));
+ForAll(Split(storednumbers, "|"), Collect(Parse8Table, {Index8: Value(Result), Word8: LookUp(Parse2Table, Index = Value(Result), Word)}));
+
+ClearCollect(Final__ParseTable, Sort(Parse8Table, Index8, Ascending));
+ClearCollect(Final_ParseTable, ForAll(Final__ParseTable, {Word: Word8}));
+ClearCollect(FinalParseTable, Substitute(Final_ParseTable, "&" , "and")); //Replace ampersand with "and"
+UpdateContext({newstring: Concat(FinalParseTable, Word, " ")}); //Reassemble search string
+
+/*-----------------------*/ UpdateContext({loading_search: 12});
+
+Clear(booleanstart);
+
+ClearCollect(booleanand, Split(newstring, " and "));
+ClearCollect(NumbersInUseboolean, FirstN(ListOfNumbers, CountRows(booleanand))); //Add a number of rows to list of Numbers equal to the number of rows in booleanand
+ForAll(NumbersInUseboolean, Collect(booleanstart, {Phrase: Last(FirstN(booleanand, Value)).Result, indexbool: Value}));
+
+/*-----------------------*/ UpdateContext({loading_search: 13});
+
+If(Not(IsEmpty(booleanand)),
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 1, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+Clear(booleanlist_test);
+Clear(booleanlist_test);
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+RemoveIf(booleanlist_test, Left(Result, 1) = "#");
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb1);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb1, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb1, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb1, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID1, Distinct(VOC_Listb1, ID))
+);
+UpdateContext({loading_search: 14});
+
+If(Last(NumbersInUseboolean).Value > 1,
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 2, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+Clear(booleanlist_test);
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb2);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb2, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb2, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb2, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID2, Distinct(VOC_Listb2, ID))
+);
+
+UpdateContext({loading_search: 15});
+If(Last(NumbersInUseboolean).Value > 2,
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 3, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+Clear(booleanlist_test);
+
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb3);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb3, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb3, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb3, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID3, Distinct(VOC_Listb3, ID))
+);
+
+UpdateContext({loading_search: 16});
+If(Last(NumbersInUseboolean).Value > 3,
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 4, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb4);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb4, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb4, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb4, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID4, Distinct(VOC_Listb4, ID))
+);
+
+UpdateContext({loading_search: 17});
+If(Last(NumbersInUseboolean).Value > 4,
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 5, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+Clear(booleanlist_test);
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb5);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb5, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb5, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb5, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID5, Distinct(VOC_Listb5, ID))
+);
+
+If(Last(NumbersInUseboolean).Value > 5,
+UpdateContext({UniversalVar1 : Lower(Concatenate(" ",LookUp(booleanstart, indexbool = 6, Phrase)))});
+Set(FirstLevelParse, Split(UniversalVar1,""""));
+Set(Split1_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)=" ", Result, If(Right(Result,1)=" ", Result, ""))));
+Set(Split2_FirstLevelParse, ForAll(FirstLevelParse, If(Left(Result,1)<>" ", If(Right(Result,1)<>" ", Result, ""), ""))); 
+Set(Recomb_1, Concat(Split1_FirstLevelParse, Value & "  "));
+Set(SecondLevelParse, TrimEnds(Split(Recomb_1, " ")));
+Set(StopWordsRemvoved, Filter(SecondLevelParse, Result<>"the" && Result<>"or" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && Result<>"not"));
+Set(Recomb_2, Concatenate(Concat(StopWordsRemvoved, Result & ","), ",", Concat(Split2_FirstLevelParse, Value & ",")));
+Set(IntermediateParse, TrimEnds(Split(Recomb_2, ",")));
+Set(booleanlistoa, Filter(IntermediateParse, Result<>" " && Not(IsBlank(Result))));
+Set(booleanlista, Substitute(booleanlistoa, "qvx7r", "or"));
+Set(booleanlistaa, Substitute(booleanlista, "qvx7a", "&"));
+Set(booleanlistaaa, Substitute(booleanlistaa, "qvx7d", "and"));
+Clear(booleanlist_test);
+
+ForAll(booleanlistaaa, If(Left(Result, 1) = "#",
+Collect(booleanlist_test, 
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate(" ", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("""", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("'", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("(", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("[", Right(Result, Len(Result)-1), """")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), " ")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ".")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ",")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ";")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "?")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ":")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "!")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "'")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), ")")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "]")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), "}")},
+{Result:Concatenate("{", Right(Result, Len(Result)-1), """")}),
+Collect(booleanlist_test, {Result: Result})));
+
+Clear(VOC_Listb6);
+ClearCollect(Search_List, VOC_List);
+
+If(Tagsonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb6, Search(Search_List, Result, "Subject","Sub_x0020_Type","Type1", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002", "Title1"))),
+
+If(Accountonly,
+
+ForAll(booleanlist_test, Collect(VOC_Listb6, Search(Search_List, Result, "Account_x0020_Name", "Account_x0020_Number","Market_x0020_Segment","Title1", "Contact_x0020_Name"))),
+
+ForAll(booleanlist_test, Collect(VOC_Listb6, Search(Search_List, Result,  "Account_x0020_Name", "Subject","Sub_x0020_Type","Type1","Account_x0020_Number", "Type_x0020_of_x0020_Feedback","Market_x0020_Segment","Jurisdiction","Topical_x0020_Area", "Case_x0020_Owner_x0020_Role_x002", "Case_x0020_Record_x0020_Sub_x002","Description", "Title1", "Contact_x0020_Name"))))
+);
+
+Set(booleanID6, Distinct(VOC_Listb6, ID))
+);UpdateContext({loading_search: 18});
+
+Clear(VOC_List); UpdateContext({loading_search: 19});
+
+If(Last(NumbersInUseboolean).Value = 1, Collect(VOC_List, VOC_Listb1));
+
+If(Last(NumbersInUseboolean).Value = 2, Collect(VOC_List, Filter(VOC_Listb1, ID in booleanID2)));
+
+If(Last(NumbersInUseboolean).Value = 3, Clear(VOC_Listh));
+If(Last(NumbersInUseboolean).Value = 3, Collect(VOC_Listh, Filter(booleanID1, Result in booleanID2))); 
+If(Last(NumbersInUseboolean).Value = 3, Collect(VOC_List, Filter(VOC_Listb3, ID in VOC_Listh)));
+
+If(Last(NumbersInUseboolean).Value = 4, Clear(VOC_Listh); Clear(VOC_Listg));
+If(Last(NumbersInUseboolean).Value = 4, Collect(VOC_Listh, Filter(booleanID1, Result in booleanID2)));
+If(Last(NumbersInUseboolean).Value = 4, Collect(VOC_Listg, Filter(VOC_Listb3, ID in booleanID4)));
+If(Last(NumbersInUseboolean).Value = 4, Collect(VOC_List, Filter(VOC_Listg, ID in VOC_Listh)));
+
+If(Last(NumbersInUseboolean).Value = 5, Clear(VOC_Listd); Clear(VOC_Lists); Clear(VOC_Listf));
+If(Last(NumbersInUseboolean).Value = 5, Collect(VOC_Listd, Filter(booleanID1, Result in booleanID2)));
+If(Last(NumbersInUseboolean).Value = 5, Collect(VOC_Lists, Filter(booleanID3, Result in booleanID4)));
+If(Last(NumbersInUseboolean).Value = 5, Collect(VOC_Listf, Filter(VOC_Listd, Result in VOC_Lists)));
+If(Last(NumbersInUseboolean).Value = 5, Collect(VOC_List, Filter(VOC_Listb5, ID in VOC_Listf)));
+
+If(Last(NumbersInUseboolean).Value = 6, Clear(VOC_Listt); Clear(VOC_Listr); Clear(VOC_Listq); Clear(VOC_Listp); Clear(VOC_Listu));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_Listt, Filter(booleanID1, Result in booleanID2)));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_Listr, Filter(booleanID3, Result in booleanID4)));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_Listq, Filter(booleanID5, Result in booleanID6)));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_Listp, Filter(VOC_Listt, Result in VOC_Listr)));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_Listu, Filter(VOC_Listq, Result in VOC_Listp)));
+If(Last(NumbersInUseboolean).Value = 6, Collect(VOC_List, Filter(VOC_Listb6, ID in VOC_Listu)));
+
+Set(Deduplication_wholelist, Distinct(VOC_List, ID));
+ClearCollect(VOC_List_Copy, VOC_List);
+Clear(VOC_List);
+ForAll(Deduplication_wholelist, Collect(VOC_List, LookUp(VOC_List_Copy, Result = ID)));
+
+UpdateIf(VOC_List, true, {Account_x0020_Name : TrimEnds(Account_x0020_Name), Description : TrimEnds(Description), Subject: TrimEnds(Subject), Type1 : TrimEnds(Type1), Sub_x0020_Type : TrimEnds(Sub_x0020_Type), Account_x0020_Number : TrimEnds(Account_x0020_Number), Type_x0020_of_x0020_Feedback : TrimEnds(Type_x0020_of_x0020_Feedback), Market_x0020_Segment : TrimEnds(Market_x0020_Segment), Jurisdiction : TrimEnds(Jurisdiction), Topical_x0020_Area : TrimEnds(Topical_x0020_Area), Title : TrimEnds(Title), Case_x0020_Owner_x0020_Role_x002: TrimEnds(Case_x0020_Owner_x0020_Role_x002) })
+);
+);
+
+Set(Deduplication_fromstart, Distinct(VOC_List, ID));
+ClearCollect(VOC_List, Filter(VOC_Table, ID in Deduplication_fromstart));
+
+//Feedback Analytics Block
+
+Clear(VOCanalytics);
+Clear(VOCanalytics2);
+ClearCollect(VOC_List_AnalyticsBackup, UpdateIf(VOC_List, Block = Pi(), {Block: Sqrt(2)}));
+
+UpdateContext({VOCanalytics_days: Distinct(VOC_List, Date_x002f_Time_x0020_Opened)});
+UpdateContext({VOCanalytics_startdate: First(Sort(VOCanalytics_days, Result, Ascending)).Result});
+UpdateContext({VOCanalytics_enddate: Last(Sort(VOCanalytics_days, Result, Ascending)).Result});
+
+Concurrent(
+UpdateContext({VOCanalytics_days: Filter(Distinct(AllDates, Column1), Result >= VOCanalytics_startdate && Result <= VOCanalytics_enddate)}),
+UpdateContext({VOCanalytics_topic: Distinct(VOC_List, Sub_x0020_Type)}));
+
+Concurrent(
+ForAll(Sort(VOCanalytics_days, Result, Ascending), Collect(VOCanalytics, {AnalyticsDays: Result, AnalyticsSum: CountIf(VOC_List, Date_x002f_Time_x0020_Opened <= Result), AnalyticsIndivid: CountIf(VOC_List, Date_x002f_Time_x0020_Opened = Result) })),
+ForAll(Sort(VOCanalytics_topic, Result, Ascending), Collect(VOCanalytics2, {AnalyticsTopic: TrimEnds(Last(RenameColumns(Split(Result, "-"),"Result","SplitResult")).SplitResult), AnalyticsSum: CountIf(VOC_List, Sub_x0020_Type = Result)}))
+);
+
+Set(backuptotalrows, CountRows(VOC_List_AnalyticsBackup));
+
+//End Analytics Block
+
+// ---------------------------------------------------
+
+Set(highlight_terms, TrimEnds(Substitute(Substitute(Parse1Table,"#",""), """", " ")));
+
+Set(highlight_term, Filter(highlight_terms, Result<>"the" && Result<>"-" && Result<>"under" && Result<>"with" && Result<>"while" && Result<>"is" && Result<>"are" && Result<>"was" && Result<>"be" && Result<>"you" && Result<>"us" && Result<>"we" && Result<>"our" && Result<>"will" && Result<>"is" && Result<>"was" && Result<>"but" && Result<>"for" && Result<>"that" && Result<>"this" && Result<>"have" && Result<>"has" && Result<>"had" && 
+Result<>"ground" && Result<>"back" && Result<>"background" && Result<>"span" && Result<>"color" && Result<>"style" && Result<>"not" && Result<>"and" && Result<>"&" && Result<>"or"));
+
+ClearCollect(NumbersInUse_highlight, FirstN(ListOfNumbers, CountRows(highlight_term)));
+
+ForAll(NumbersInUse_highlight, Collect(highlights, {Index:Value, Word:Last(FirstN(highlight_term, Value)).Result}));
+
+// ---------------------------------------------------
+
+//Set table for sorting
+//ClearCollect(VOC_Sort, ShowColumns(AddColumns(Sort(VOC_List, VOCID), "SortColumn", VOCID), "SortColumn", "VOCID"));
+UpdateContext({loading_search: 20});
+//Set(SortIter, CountRows(VOC_Sort));
+
+//Set variables for saved search on result screen
+Set(Detail_viewed, First(Sort(VOC_List, ID)).ID);
+Set(DateToVar,SearchDateTo);
+Set(DateFromVar,SearchDateFrom);
+Set(pre_built_display, "");
+
+//Set(ParamID, ""); 
+Set(linktimer, false);
+Set(UniversalVar, SearchTerms);
+
+UpdateContext({startSearchTimer: false}); //Used to start timer on search
+
+//Analytics
+UpdateContext({searchEventJSON:
+Concatenate("{ ", 
+     Char(34), "eventType", Char(34), " : ", Char(34), "search", Char(34), 
+     ", ", Char(34), "user", Char(34), " : ", Char(34), CurrentUser, Char(34), 
+     ", ", Char(34), "userTitle", Char(34), " : ", Char(34), UserInformation.jobTitle, Char(34),
+     ", ", Char(34), "userDepartment", Char(34), " : ", Char(34), UserInformation.department, Char(34),  
+     ", ", Char(34), "userLocation", Char(34), " : ", Char(34), UserInformation.city, ", ", UserInformation.country, Char(34), 
+     ", ", Char(34), "dateFrom", Char(34), " : ", Char(34), Text(SearchDateFrom), Char(34), 
+     ", ", Char(34), "dateTo", Char(34), " : ", Char(34), Text(SearchDateTo), Char(34), 
+     If(CountRows(Department_Table) <> 3, Concatenate(", ", Char(34), "department", Char(34), " : [", Concat(Department_Table, Concatenate(Char(34), Value, Char(34)), " , "), " ]")), 
+     If(CountRows(Type_Table) <> CountRows(Distinct(Filter(Filter_Table, Category <> ""), Category)), 
+     Concatenate(", ", Char(34), "category", Char(34), " : [ ", Concat(Type_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(CountRows(Sub_Type_Table) <> CountRows(Distinct(Filter(Filter_Table, SubCat <> ""), SubCat)), 
+     Concatenate(", ", Char(34), "subCategory", Char(34), " : [ ", Concat(Sub_Type_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(CountRows(Type_Feedback_Table) <> CountRows(Distinct(Filter(Filter_Table, TypeOfFeedback <> ""), TypeOfFeedback)), 
+     Concatenate(", ", Char(34), "typeOfFeedback", Char(34), " : [ ", Concat(Type_Feedback_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(CountRows(Market_Table) <> CountRows(Distinct(Filter(Filter_Table, MarketSegment <> ""), MarketSegment)), 
+     Concatenate(", ", Char(34), "marketSegment", Char(34), " : [ ", Concat(Sub_Type_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(CountRows(Topical_Table) <> CountRows(Distinct(Filter(Filter_Table, TopicalArea <> ""), TopicalArea)), 
+     Concatenate(", ", Char(34), "topicalArea", Char(34), " : [ ", Concat(Topical_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(CountRows(Jurisdiction_Table) <> CountRows(Distinct(Filter(Filter_Table, Jurisdiction <> ""), Jurisdiction)), 
+     Concatenate(", ", Char(34), "jurisdiction", Char(34), " : [ ", Concat(Jurisdiction_Table, Concatenate(Char(34), Result, Char(34)), " , "), " ]")),
+     If(Not(IsBlank(SearchTerms)),
+     Concatenate(", ", Char(34), "searchTerms", Char(34), " : ", Char(34), Substitute(SearchTerms, """", "'"), Char(34))), 
+     ", ", Char(34), "eventTime", Char(34), " : ", Char(34), Text(Now()), Char(34), 
+" }")});
+
+Collect(LoggedEvents, {Title: GUID(), User: CurrentUser, App: "VOC", Event : searchEventJSON});
+
+Collect(Usage, {Title: Text(GUID()), Username: User().FullName, TimesLoaded: 0, TimesSearched: 1, TimesDetail: 0, LastAccess: Today(), Department: UserInformation.department, JobTitle: UserInformation.jobTitle, City: UserInformation.city, Country: UserInformation.country}); //Add search row to analytics
+
+Navigate(Result_List_Screen,ScreenTransition.None) //Switch to result screen
